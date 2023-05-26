@@ -1,0 +1,4 @@
+# global rules
+node_modules
+
+# project specific rules

@@ -1,0 +1,15 @@
+{
+  "name": "audit-token-and-presale",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^2.0.2",
+    "hardhat": "^2.14.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.9.0",
+    "decimal.js": "^10.4.3",
+    "dotenv": "^16.0.3",
+    "hardhat-gas-reporter": "^1.0.9",
+    "prettier": "^2.8.8",
+    "solidity-coverage": "^0.8.2"
+  }
+}
