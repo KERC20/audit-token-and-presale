@@ -1,38 +1,10 @@
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers';
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
-import Decimal from 'decimal.js';
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { KercPresale, USDT } from '../typechain-types';
 import * as helpers from './helpers';
 
-Decimal.set({ toExpPos: 500, toExpNeg: -500 });
-
-const ETH = new Decimal(1e18);
-const USD = new Decimal(1e6);
-
-function numToWei(n: number) {
-  return ETH.mul(n).toString();
-}
-
-function numToUSD(n: number) {
-  return USD.mul(n).toString();
-}
-
-type Fixture = {
-  presale: KercPresale;
-  usdt: USDT;
-  owner: SignerWithAddress;
-  treasury: SignerWithAddress;
-  account1: SignerWithAddress;
-  account2: SignerWithAddress;
-  account3: SignerWithAddress;
-  account4: SignerWithAddress;
-  now: number;
-};
-
 describe('Presale', function () {
-  async function deploy(): Promise<Fixture> {
+  async function deploy() {
     const [owner, treasury, account1, account2, account3, account4] =
       await ethers.getSigners();
 
@@ -49,7 +21,7 @@ describe('Presale', function () {
       0
     );
 
-    const seedAmount = numToUSD(10_000_000);
+    const seedAmount = helpers.numToUSD(10_000_000);
     await usdt.mint(account1.address, seedAmount);
     await usdt.mint(account2.address, seedAmount);
     await usdt.mint(account3.address, seedAmount);
@@ -96,7 +68,7 @@ describe('Presale', function () {
 
     await presale.setTimes(now - 3600, now + 3600);
 
-    const amt = numToUSD(1_000);
+    const amt = helpers.numToUSD(1_000);
 
     const { deadline, v, r, s } = await helpers.permit(
       usdt,
@@ -125,9 +97,9 @@ describe('Presale', function () {
 
     await presale.setTimes(now - 3600, now + 3600);
 
-    const amt1k = numToUSD(1_000);
-    const amt2k = numToUSD(2_000);
-    const amt3k = numToUSD(3_000);
+    const amt1k = helpers.numToUSD(1_000);
+    const amt2k = helpers.numToUSD(2_000);
+    const amt3k = helpers.numToUSD(3_000);
 
     await usdt.connect(account1).approve(presale.address, amt2k);
     await usdt.connect(account2).approve(presale.address, amt1k);
@@ -144,31 +116,32 @@ describe('Presale', function () {
 
     // 2k + 1k = 3k
     expect((await usdt.balanceOf(treasury.address)).toString()).to.equal(amt3k);
+
+    expect(await presale.numberOfDepositors()).to.equal(2);
   });
 
   it('Fails if amount would go over hard cap', async function () {
-    const { presale, treasury, usdt, account1, now } = await loadFixture(
-      deploy
-    );
+    const { presale, usdt, account1, now } = await loadFixture(deploy);
 
     await presale.setTimes(now - 3600, now + 3600);
 
-    await usdt.connect(account1).approve(presale.address, numToUSD(10_000_000));
+    await usdt
+      .connect(account1)
+      .approve(presale.address, helpers.numToUSD(10_000_000));
 
     // double deposits of 1k to account1
     await expect(
-      presale.connect(account1).deposit(numToUSD(3_000_000))
+      presale.connect(account1).deposit(helpers.numToUSD(3_000_000))
     ).to.be.rejectedWith('ERR:AMT_TOO_BIG');
-    await expect(presale.connect(account1).deposit(numToUSD(2_400_000))).to.not
-      .be.rejected;
+    await expect(presale.connect(account1).deposit(helpers.numToUSD(2_400_000)))
+      .to.not.be.rejected;
     await expect(
-      presale.connect(account1).deposit(numToUSD(200_000))
+      presale.connect(account1).deposit(helpers.numToUSD(200_000))
     ).to.be.rejectedWith('ERR:AMT_TOO_BIG');
-    await expect(presale.connect(account1).deposit(numToUSD(100_000))).to.not.be
-      .reverted;
+    await expect(presale.connect(account1).deposit(helpers.numToUSD(100_000)))
+      .to.not.be.reverted;
     await expect(presale.connect(account1).deposit(1)).to.be.revertedWith(
       'ERR:NOT_OPEN'
     );
   });
-  it('Turns off when hard cap is reached', async function () {});
 });

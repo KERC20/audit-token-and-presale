@@ -18,11 +18,14 @@ contract KercPresale is Ownable {
 
     event Deposit(address indexed user, uint256 amount);
 
-    modifier canDeposit(uint256 _amount) {
+    function _canDeposit(uint256 _amount) private view {
         require(open(), "ERR:NOT_OPEN");
         require(_amount > 0, "ERR:AMOUNT");
         require(totalBalance + _amount <= hardCap, "ERR:AMT_TOO_BIG");
+    }
 
+    modifier canDeposit(uint256 _amount) {
+        _canDeposit(_amount);
         _;
     }
 

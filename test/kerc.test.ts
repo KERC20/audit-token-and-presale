@@ -20,14 +20,18 @@ function numToMillion(n: number) {
 
 describe('KERC', function () {
   async function deploy() {
-    const [owner, eco, op, res, vest, ...accounts] = await ethers.getSigners();
+    const [owner, eco, op, res, multisig, ...accounts] =
+      await ethers.getSigners();
+
+    const Vesting = await ethers.getContractFactory('KercVesting');
+    const vesting = await Vesting.deploy(multisig.address);
 
     const KERC = await ethers.getContractFactory('KERC');
     const kerc = await KERC.deploy(
       eco.address,
       op.address,
       res.address,
-      vest.address
+      vesting.address
     );
 
     return {
@@ -36,18 +40,18 @@ describe('KERC', function () {
       eco,
       op,
       res,
-      vest,
+      vesting,
       accounts,
     };
   }
 
   it('Correctly mints tokens', async function () {
-    const { kerc, eco, op, res, vest } = await loadFixture(deploy);
+    const { kerc, eco, op, res, vesting } = await loadFixture(deploy);
 
     expect(await kerc.balanceOf(eco.address)).to.be.equal(numToMillion(350));
     expect(await kerc.balanceOf(op.address)).to.be.equal(numToMillion(75));
     expect(await kerc.balanceOf(res.address)).to.be.equal(numToMillion(25));
-    expect(await kerc.balanceOf(vest.address)).to.be.equal(numToMillion(50));
+    expect(await kerc.balanceOf(vesting.address)).to.be.equal(numToMillion(50));
   });
 
   it('Can burn tokens', async function () {

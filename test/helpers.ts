@@ -3,6 +3,19 @@ import Decimal from 'decimal.js';
 import hre from 'hardhat';
 import { ERC20Permit } from '../typechain-types';
 
+Decimal.set({ toExpPos: 500, toExpNeg: -500 });
+
+export const ETH = new Decimal(1e18);
+export const USD = new Decimal(1e6);
+
+export function numToWei(n: number) {
+  return ETH.mul(n).toString();
+}
+
+export function numToUSD(n: number) {
+  return USD.mul(n).toString();
+}
+
 export async function permit(
   token: ERC20Permit,
   spender: string,

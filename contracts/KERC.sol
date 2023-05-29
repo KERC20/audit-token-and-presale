@@ -8,6 +8,10 @@ import { // prettier-ignore
     ERC20Burnable
 } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 
+interface IKercVesting {
+    function start(address, uint256) external;
+}
+
 contract KERC is ERC20Permit, ERC20Burnable {
     constructor(
         address _ecosystem,
@@ -20,18 +24,12 @@ contract KERC is ERC20Permit, ERC20Burnable {
         // Read more about token allocations here:
         // https://kerc.gitbook.io/kerc/tokenomics/usdkerc-token
 
-        // Mint a total of 500M tokens into different wallets and contract
+        _mint(_ecosystem,       350 * million); // prettier-ignore
+        _mint(_operations,       75 * million); // prettier-ignore
+        _mint(_reserves,         25 * million); // prettier-ignore
+        _mint(_vestingContract,  50 * million); // prettier-ignore
 
-        // 350M - Ecosystem Rewards & Future Utility
-        //  75M - Operations
-        //  25M - Reserves
-        //  50M - Vested: Team (40M) & Advisory (10M), see `_vestingContract`
-        _mint(_ecosystem, 350 * million);
-        _mint(_operations, 75 * million);
-        _mint(_reserves, 25 * million);
-
-        // These tokens are vested according to set schedule (starts after 12 months)
-        // See `_vestingContract` for details and exact schedule
-        _mint(_vestingContract, 50 * million);
+        // Initiate vesting of Team and Advisory tokens
+        IKercVesting(_vestingContract).start(address(this), 50 * million);
     }
 }
