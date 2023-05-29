@@ -7,7 +7,7 @@ import "hardhat/console.sol";
 
 contract KercVesting is Ownable {
     // prettier-ignore
-    uint16[] schedulePct = [
+    uint16[] private schedulePct = [
         // 1st year intentionally left blank, see code in `vestedAmount()`
          50,  50,  50,  50,  50,  50, 100, 100, 100, 100, 100, 100, // 2nd year
         150, 150, 150, 150, 150, 150, 300, 300, 300, 300, 300, 300, // 3rd year
