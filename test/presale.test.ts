@@ -2,11 +2,14 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers';
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import * as helpers from './helpers';
+import * as networkHelpers from '@nomicfoundation/hardhat-network-helpers';
 
 describe('Presale', function () {
   async function deploy() {
     const [owner, treasury, account1, account2, account3, account4] =
       await ethers.getSigners();
+
+    const now = +(await networkHelpers.time.latest());
 
     const USDT = await ethers.getContractFactory('USDT');
     const usdt = await USDT.deploy();
@@ -17,8 +20,8 @@ describe('Presale', function () {
       treasury.address,
       usdt.address,
       2_500_000,
-      0,
-      0
+      now + 3600,
+      now + 3600 * 24
     );
 
     const seedAmount = helpers.numToUSD(10_000_000);
@@ -26,7 +29,6 @@ describe('Presale', function () {
     await usdt.mint(account2.address, seedAmount);
     await usdt.mint(account3.address, seedAmount);
 
-    const now = Math.floor(new Date().getTime() / 1000);
     return {
       presale,
       usdt,
@@ -42,23 +44,18 @@ describe('Presale', function () {
 
   it('Correctly reports open status (non-deposit related)', async function () {
     const { presale, now } = await loadFixture(deploy);
+
     expect(await presale.open()).to.be.false;
-    await presale.setTimes(now - 3600, now + 600);
+    await networkHelpers.time.increaseTo(now + 3600);
     expect(await presale.open()).to.be.true;
-    await presale.setTimes(now + 3600, now + 7200);
-    expect(await presale.open()).to.be.false;
-    await presale.setTimes(now - 3600, now - 600);
-    expect(await presale.open()).to.be.false;
-    await presale.setEndTime(now + 600);
+    await networkHelpers.time.increaseTo(now + 3600 * 12);
     expect(await presale.open()).to.be.true;
-    await presale.setStartTime(now + 300);
+    await networkHelpers.time.increaseTo(now + 3600 * 25);
     expect(await presale.open()).to.be.false;
-    await presale.setStartTime(now - 300);
+    await presale.setEndTime(now + 3600 * 36);
     expect(await presale.open()).to.be.true;
-    await presale.setClosed(true);
+    await networkHelpers.time.increaseTo(now + 3600 * 37);
     expect(await presale.open()).to.be.false;
-    await presale.setClosed(false);
-    expect(await presale.open()).to.be.true;
   });
 
   it('Can deposit using permit', async function () {
@@ -66,7 +63,7 @@ describe('Presale', function () {
       deploy
     );
 
-    await presale.setTimes(now - 3600, now + 3600);
+    await networkHelpers.time.increaseTo(now + 3600 * 12);
 
     const amt = helpers.numToUSD(1_000);
 
@@ -74,7 +71,8 @@ describe('Presale', function () {
       usdt,
       presale.address,
       account1,
-      amt
+      amt,
+      now + 3600 * 12
     );
 
     // Valid permit
@@ -95,7 +93,7 @@ describe('Presale', function () {
     const { presale, treasury, usdt, account1, account2, now } =
       await loadFixture(deploy);
 
-    await presale.setTimes(now - 3600, now + 3600);
+    await networkHelpers.time.increaseTo(now + 3600 * 12);
 
     const amt1k = helpers.numToUSD(1_000);
     const amt2k = helpers.numToUSD(2_000);
@@ -123,7 +121,7 @@ describe('Presale', function () {
   it('Fails if amount would go over hard cap', async function () {
     const { presale, usdt, account1, now } = await loadFixture(deploy);
 
-    await presale.setTimes(now - 3600, now + 3600);
+    await networkHelpers.time.increaseTo(now + 3600 * 12);
 
     await usdt
       .connect(account1)

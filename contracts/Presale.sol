@@ -16,7 +16,6 @@ contract KercPresale is Ownable {
     uint256 public totalBalance;
     uint256 public startTime;
     uint256 public endTime;
-    bool public isClosed;
 
     event Deposit(address indexed user, uint256 amount);
 
@@ -33,23 +32,26 @@ contract KercPresale is Ownable {
 
     constructor(
         address payable _raiseReceiver,
-        ERC20Permit _raiseToken,
+        address _raiseToken,
         uint256 _hardCap,
         uint32 _startTime,
         uint32 _endTime
     ) {
+        require(_raiseReceiver != address(0), "ERR:ZERO_ADDR:RECEIVER");
+        require(_raiseToken != address(0), "ERR:ZERO_ADDR:TOKEN");
+        require(_startTime > 0, "ERR:START_TIME");
+        require(_endTime > 0, "ERR:END_TIME");
+        require(_startTime < _endTime, "ERR:START_LT_END");
+
         raiseReceiver = _raiseReceiver;
-        raiseToken = _raiseToken;
-        hardCap = _hardCap * 10 ** _raiseToken.decimals();
+        raiseToken = ERC20Permit(_raiseToken);
+        hardCap = _hardCap * 10 ** ERC20Permit(_raiseToken).decimals();
         startTime = _startTime;
         endTime = _endTime;
     }
 
     function open() public view returns (bool) {
         return
-            !isClosed &&
-            startTime > 0 &&
-            endTime > 0 &&
             startTime <= block.timestamp &&
             endTime >= block.timestamp &&
             totalBalance < hardCap;
@@ -102,34 +104,10 @@ contract KercPresale is Ownable {
         return allBalances.length;
     }
 
-    function setClosed(bool _closed) public onlyOwner {
-        isClosed = _closed;
-    }
-
-    function setHardCap(uint256 _hardCap) public onlyOwner {
-        hardCap = _hardCap * 10 ** raiseToken.decimals();
-    }
-
-    function setRaiseReceiver(address payable _raiseReceiver) public onlyOwner {
-        require(_raiseReceiver != address(0), "ERR:INCORRECT_ADDR");
-
-        raiseReceiver = _raiseReceiver;
-    }
-
-    function setTimes(uint32 _startTime, uint32 _endTime) public onlyOwner {
-        require(_startTime <= _endTime, "ERR:START_GT_END");
-
-        startTime = _startTime;
-        endTime = _endTime;
-    }
-
-    function setStartTime(uint32 _startTime) public onlyOwner {
-        require(_startTime <= endTime, "ERR:START_GT_END");
-        startTime = _startTime;
-    }
-
+    /// @dev End time can only be extended
     function setEndTime(uint32 _endTime) public onlyOwner {
-        require(startTime <= _endTime, "ERR:START_GT_END");
+        require(_endTime > endTime, "ERR:END_ONLY_EXTEND");
+
         endTime = _endTime;
     }
 
