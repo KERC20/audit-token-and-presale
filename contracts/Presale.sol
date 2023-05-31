@@ -18,6 +18,7 @@ contract KercPresale is Ownable {
     uint256 public endTime;
 
     event Deposit(address indexed user, uint256 amount);
+    event UpdatePresaleEndTime(uint256 endTime);
 
     function _canDeposit(uint256 _amount) private view {
         require(open(), "ERR:NOT_OPEN");
@@ -51,10 +52,8 @@ contract KercPresale is Ownable {
     }
 
     function open() public view returns (bool) {
-        return
-            startTime <= block.timestamp &&
-            endTime >= block.timestamp &&
-            totalBalance < hardCap;
+        uint256 ts = block.timestamp;
+        return startTime <= ts && endTime >= ts && totalBalance < hardCap;
     }
 
     /// @dev Regular approval + transfer dance
@@ -109,6 +108,8 @@ contract KercPresale is Ownable {
         require(_endTime > endTime, "ERR:END_ONLY_EXTEND");
 
         endTime = _endTime;
+
+        emit UpdatePresaleEndTime(_endTime);
     }
 
     /// @notice If for some reason someone sends ETH to this contract

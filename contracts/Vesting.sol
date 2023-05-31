@@ -28,6 +28,9 @@ contract KercVesting is Ownable {
         uint256 _startTime
     );
     event ERC20Released(address indexed token, uint256 amount);
+    event UpdateVestingReceiver(address receiver);
+    /// @dev `token` is address(0) if ETH
+    event EmergecyWithdraw(address receiver, address token, uint256 balance);
 
     constructor(address _receiver) {
         receiver = _receiver;
@@ -89,6 +92,8 @@ contract KercVesting is Ownable {
         require(_receiver != address(0), "ERR:ZERO_ADDR:RECEIVER");
 
         receiver = _receiver;
+
+        emit UpdateVestingReceiver(_receiver);
     }
 
     function emergencyWithdrawETH(address _receiver) public onlyOwner {
@@ -96,6 +101,8 @@ contract KercVesting is Ownable {
 
         uint256 balance = address(this).balance;
         payable(_receiver).transfer(balance);
+
+        emit EmergecyWithdraw(_receiver, address(0), balance);
     }
 
     /// Withdraw any token except the vesting token
@@ -113,7 +120,10 @@ contract KercVesting is Ownable {
         );
 
         IERC20 t = IERC20(_token);
-        t.transfer(_receiver, t.balanceOf(address(this)));
+        uint256 balance = t.balanceOf(address(this));
+        t.transfer(_receiver, balance);
+
+        emit EmergecyWithdraw(_receiver, _token, balance);
     }
 
     receive() external payable {}
