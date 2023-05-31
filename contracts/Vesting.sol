@@ -63,7 +63,7 @@ contract KercVesting is Ownable {
     function start(address _token, uint256 _amount) public {
         require(tx.origin == owner(), "ERR:NOT_OWNER");
         require(startTime == 0, "ERR:ALREADY_STARTED");
-        require(_token != address(0), "ERR:ZERO_ADDR_NOT_ALLOWED");
+        require(_token != address(0), "ERR:ZERO_ADDR:TOKEN");
 
         token = _token;
         initialBalance = _amount;
@@ -86,11 +86,16 @@ contract KercVesting is Ownable {
     }
 
     function setReceiver(address _receiver) public onlyOwner {
+        require(_receiver != address(0), "ERR:ZERO_ADDR:RECEIVER");
+
         receiver = _receiver;
     }
 
     function emergencyWithdrawETH(address _receiver) public onlyOwner {
-        payable(_receiver).transfer(address(this).balance);
+        require(_receiver != address(0), "ERR:ZERO_ADDR:RECEIVER");
+
+        uint256 balance = address(this).balance;
+        payable(_receiver).transfer(balance);
     }
 
     /// Withdraw any token except the vesting token
@@ -99,7 +104,13 @@ contract KercVesting is Ownable {
         address _token,
         address _receiver
     ) public onlyOwner {
-        require(token != _token, "ERR:CANT_WITHDRAW_VESTING_TOKEN");
+        require(_receiver != address(0), "ERR:ZERO_ADDR:RECEIVER");
+        require(
+            token != _token ||
+                block.timestamp >
+                startTime + monthInSeconds * (schedulePct.length + 12),
+            "ERR:CANT_WITHDRAW_VESTING_TOKEN"
+        );
 
         IERC20 t = IERC20(_token);
         t.transfer(_receiver, t.balanceOf(address(this)));
