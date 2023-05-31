@@ -5,6 +5,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+/// @title Presale for the KERC token
+/// @author snorkypie
 contract KercPresale is Ownable {
     ERC20Permit public raiseToken;
     mapping(address => uint256) public balances;
@@ -53,12 +55,12 @@ contract KercPresale is Ownable {
             totalBalance < hardCap;
     }
 
-    // Regular approval + transfer dance
+    /// @dev Regular approval + transfer dance
     function deposit(uint256 _amount) public canDeposit(_amount) {
         _deposit(_amount);
     }
 
-    // Signed permit + transfer
+    /// @dev Signed permit + transfer
     function depositWithPermit(
         uint256 _amount,
         uint256 _deadline,
@@ -131,12 +133,12 @@ contract KercPresale is Ownable {
         endTime = _endTime;
     }
 
-    // If for some reason someone sends ETH to this contract
+    /// @notice If for some reason someone sends ETH to this contract
     function withdrawETH() external onlyOwner {
         raiseReceiver.transfer(address(this).balance);
     }
 
-    // If for some reason someone sends ERC20 tokens to this contract
+    /// @notice If for some reason someone sends ERC20 tokens to this contract
     function withdraw(IERC20 _token) external onlyOwner {
         _token.transfer(raiseReceiver, _token.balanceOf(address(this)));
     }
