@@ -20,9 +20,10 @@ export async function permit(
   token: ERC20Permit,
   spender: string,
   signer: SignerWithAddress,
-  value: Decimal | string
+  value: Decimal | string,
+  now: number
 ) {
-  const deadline = Math.floor(Date.now() / 1000) + 600;
+  const deadline = now + 600;
   const [nonce, name, chainId] = await Promise.all([
     token.nonces(signer.address),
     token.name(),

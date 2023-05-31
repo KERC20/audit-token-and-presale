@@ -36,18 +36,20 @@ describe('Vesting', function () {
     expect(await vesting.receiver()).to.equal(multisig.address);
     await expect(vesting.setReceiver(account1.address)).to.not.be.reverted;
     expect(await vesting.receiver()).to.equal(account1.address);
+    await expect(vesting.setReceiver(ethers.constants.AddressZero)).to.be
+      .reverted;
   });
 
   it("Doesn't allow start() to be re-run", async function () {
     const { kerc, vesting, account1 } = await loadFixture(deploy);
 
-    const vestingAmt = helpers.numToWei(50_000_000);
+    const fiftyM = helpers.numToWei(50_000_000);
 
     await expect(
-      vesting.connect(account1).start(kerc.address, vestingAmt)
+      vesting.connect(account1).start(kerc.address, fiftyM)
     ).to.be.revertedWith('ERR:NOT_OWNER');
 
-    await expect(vesting.start(kerc.address, vestingAmt)).to.be.revertedWith(
+    await expect(vesting.start(kerc.address, fiftyM)).to.be.revertedWith(
       'ERR:ALREADY_STARTED'
     );
   });
@@ -149,10 +151,16 @@ describe('Vesting', function () {
   });
 
   it('Disallows emergency withdrawal of vesting token', async function () {
-    const { kerc, vesting, account1 } = await loadFixture(deploy);
+    const { now, kerc, vesting, account1 } = await loadFixture(deploy);
 
     await expect(
       vesting.emergencyWithdrawToken(kerc.address, account1.address)
     ).to.be.revertedWith('ERR:CANT_WITHDRAW_VESTING_TOKEN');
+
+    // After vesting ends
+    await networkHelpers.time.increaseTo(now + monthInSeconds * 53);
+
+    await expect(vesting.emergencyWithdrawToken(kerc.address, account1.address))
+      .to.not.be.reverted;
   });
 });

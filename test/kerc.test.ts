@@ -1,10 +1,7 @@
-import { time, loadFixture } from '@nomicfoundation/hardhat-network-helpers';
-import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs';
+import { loadFixture } from '@nomicfoundation/hardhat-network-helpers';
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import Decimal from 'decimal.js';
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { USDT } from '../typechain-types';
 
 Decimal.set({ toExpPos: 500, toExpNeg: -500 });
 
