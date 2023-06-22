@@ -1,6 +1,6 @@
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 import Decimal from 'decimal.js';
-import hre from 'hardhat';
+import { ethers } from 'hardhat';
 import { ERC20Permit } from '../typechain-types';
 
 Decimal.set({ toExpPos: 500, toExpNeg: -500 });
@@ -24,17 +24,17 @@ export async function permit(
   now: number
 ) {
   const deadline = now + 600;
-  const [nonce, name, chainId] = await Promise.all([
+  const [nonce, name, network] = await Promise.all([
     token.nonces(signer.address),
     token.name(),
-    signer.getChainId(),
+    signer.provider.getNetwork(),
   ]);
 
   const domain = {
     name,
     version: '1',
-    chainId,
-    verifyingContract: token.address,
+    chainId: network.chainId,
+    verifyingContract: await token.getAddress()
   };
   const types = {
     Permit: [
@@ -52,8 +52,8 @@ export async function permit(
     nonce,
     deadline,
   };
-  const signature = await signer._signTypedData(domain, types, values);
-  const sig = hre.ethers.utils.splitSignature(signature);
+  const signature = await signer.signTypedData(domain, types, values);
+  const sig = ethers.Signature.from(signature);
 
-  return { deadline, ...sig };
+  return { deadline, v: sig.v, r: sig.r, s: sig.s };
 }

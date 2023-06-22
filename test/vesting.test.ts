@@ -9,64 +9,54 @@ const monthInSeconds = 2628000;
 
 describe('Vesting', function () {
   async function deploy() {
-    const [owner, eco, op, res, multisig, account1] = await ethers.getSigners();
+    const [owner, eco, op, res, vTeam, vPartner, ...accounts] =
+      await ethers.getSigners();
 
-    const USDT = await ethers.getContractFactory('USDT');
-    const usdt = await USDT.deploy();
+    const usdc = await ethers.deployContract('Token', ['USD Coin', 'USDC', 6]);
+    const usdcAddr = await usdc.getAddress();
 
-    const Vesting = await ethers.getContractFactory('KercVesting');
-    const vesting = await Vesting.deploy(multisig.address);
-
-    const KERC = await ethers.getContractFactory('KERC');
-    const kerc = await KERC.deploy(
+    const kerc = await ethers.deployContract('KERC', [
       eco.address,
       op.address,
       res.address,
-      vesting.address
+      vTeam.address,
+      vPartner.address,
+      210_000, // 6% of 3.5M
+    ]);
+    const kercAddr = await kerc.getAddress();
+    const teamVesting = await ethers.getContractAt(
+      'KercVesting',
+      await kerc.teamVesting()
     );
 
     const now = +(await networkHelpers.time.latest());
 
-    return { owner, kerc, vesting, usdt, now, multisig, account1 };
+    return {
+      owner,
+      kerc,
+      kercAddr,
+      teamVesting,
+      usdc,
+      usdcAddr,
+      now,
+      vTeam,
+      accounts,
+    };
   }
 
-  it('Can update receiver', async function () {
-    const { vesting, multisig, account1 } = await loadFixture(deploy);
-
-    expect(await vesting.receiver()).to.equal(multisig.address);
-    await expect(vesting.setReceiver(account1.address)).to.not.be.reverted;
-    expect(await vesting.receiver()).to.equal(account1.address);
-    await expect(vesting.setReceiver(ethers.constants.AddressZero)).to.be
-      .reverted;
-  });
-
-  it("Doesn't allow start() to be re-run", async function () {
-    const { kerc, vesting, account1 } = await loadFixture(deploy);
-
-    const fiftyM = helpers.numToWei(50_000_000);
-
-    await expect(
-      vesting.connect(account1).start(kerc.address, fiftyM)
-    ).to.be.revertedWith('ERR:NOT_OWNER');
-
-    await expect(vesting.start(kerc.address, fiftyM)).to.be.revertedWith(
-      'ERR:ALREADY_STARTED'
-    );
-  });
-
   it('Correctly starts at zero', async function () {
-    const { vesting } = await loadFixture(deploy);
+    const { teamVesting } = await loadFixture(deploy);
 
     const now = +(await networkHelpers.time.latest());
 
-    expect(await vesting.startTime()).to.be.equal(now);
-    expect(await vesting.vestedAmount()).to.be.equal(0);
-    expect(await vesting.releasable()).to.be.equal(0);
-    expect(await vesting.released()).to.be.equal(0);
+    expect(await teamVesting.startTime()).to.be.equal(now);
+    expect(await teamVesting.vestedAmount()).to.be.equal(0);
+    expect(await teamVesting.releasable()).to.be.equal(0);
+    expect(await teamVesting.released()).to.be.equal(0);
   });
 
   it('Correctly calculates vesting payouts', async function () {
-    const { vesting } = await loadFixture(deploy);
+    const { teamVesting } = await loadFixture(deploy);
 
     const now = +(await networkHelpers.time.latest());
     const fiftyM = new Decimal(helpers.numToWei(50_000_000));
@@ -85,82 +75,105 @@ describe('Vesting', function () {
       pct = pct.plus(schedule[i]);
 
       await networkHelpers.time.increaseTo(now + monthInSeconds * (i + 1));
-      expect(await vesting.vestedAmount()).to.be.equal(
+      expect(await teamVesting.vestedAmount()).to.be.equal(
         fiftyM.mul(pct.div(100)).toString()
       );
     }
   });
 
   it('Correctly calculates vested amount in 10 years', async function () {
-    const { vesting } = await loadFixture(deploy);
+    const { teamVesting } = await loadFixture(deploy);
 
     const now = +(await networkHelpers.time.latest());
 
     await networkHelpers.time.increaseTo(now + monthInSeconds * 12 * 10);
-    expect(await vesting.vestedAmount()).to.be.equal(
+    expect(await teamVesting.vestedAmount()).to.be.equal(
       helpers.numToWei(50_000_000)
     );
   });
 
   it('Correctly receives vesting amount', async function () {
-    const { kerc, vesting, multisig, account1 } = await loadFixture(deploy);
+    const { kerc, teamVesting, vTeam } = await loadFixture(deploy);
 
     const now = +(await networkHelpers.time.latest());
     await networkHelpers.time.increaseTo(now + monthInSeconds * 16.5);
 
-    expect(await kerc.balanceOf(multisig.address)).to.be.equal(0);
-    await expect(vesting.connect(account1).release()).to.not.be.reverted;
-    expect(await kerc.balanceOf(multisig.address)).to.be.equal(
+    expect(await kerc.balanceOf(vTeam.address)).to.be.equal(0);
+    await expect(teamVesting.connect(vTeam).release()).to.not.be.reverted;
+    expect(await kerc.balanceOf(vTeam.address)).to.be.equal(
       helpers.numToWei(1_000_000)
     );
-    await expect(vesting.connect(account1).release()).to.be.revertedWith(
+    await expect(teamVesting.connect(vTeam).release()).to.be.revertedWith(
       'ERR:NOTHING_TO_RELEASE'
     );
-    expect(await kerc.balanceOf(multisig.address)).to.be.equal(
+    expect(await kerc.balanceOf(vTeam.address)).to.be.equal(
       helpers.numToWei(1_000_000)
     );
   });
 
   it('Allows emergency withdrawal', async function () {
-    const { owner, vesting, usdt, account1 } = await loadFixture(deploy);
+    const {
+      owner,
+      teamVesting,
+      usdc,
+      usdcAddr,
+      vTeam,
+      accounts: [account1],
+    } = await loadFixture(deploy);
 
     const amt = 100 * 1e6;
 
     // Withdraw token
-    await usdt.mint(vesting.address, amt);
-    expect(await usdt.balanceOf(vesting.address)).to.be.equal(amt);
-    await expect(vesting.emergencyWithdrawToken(usdt.address, account1.address))
-      .to.not.be.reverted;
-    expect(await usdt.balanceOf(vesting.address)).to.be.equal(0);
-    expect(await usdt.balanceOf(account1.address)).to.be.equal(amt);
+    const vestingAddr = await teamVesting.getAddress();
+    await usdc.mint(vestingAddr, amt);
+    expect(await usdc.balanceOf(vestingAddr)).to.be.equal(amt);
+    await expect(
+      teamVesting
+        .connect(vTeam)
+        .emergencyWithdrawToken(usdcAddr, account1.address)
+    ).to.not.be.reverted;
+    expect(await usdc.balanceOf(vestingAddr)).to.be.equal(0);
+    expect(await usdc.balanceOf(account1.address)).to.be.equal(amt);
 
     // Withdraw ETH
     await owner.sendTransaction({
-      to: vesting.address,
+      to: vestingAddr,
       value: amt,
     });
-    expect(await ethers.provider.getBalance(vesting.address)).to.be.equal(amt);
+    expect(await ethers.provider.getBalance(vestingAddr)).to.be.equal(amt);
     expect(await ethers.provider.getBalance(account1.address)).to.be.equal(
       helpers.numToWei(10_000)
     );
-    await expect(vesting.emergencyWithdrawETH(account1.address)).to.not.be
-      .reverted;
+    await expect(
+      teamVesting.connect(vTeam).emergencyWithdrawETH(account1.address)
+    ).to.not.be.reverted;
     expect(await ethers.provider.getBalance(account1.address)).to.be.equal(
       new Decimal(helpers.numToWei(10_000)).plus(amt).toString()
     );
   });
 
   it('Disallows emergency withdrawal of vesting token', async function () {
-    const { now, kerc, vesting, account1 } = await loadFixture(deploy);
+    const {
+      now,
+      kercAddr,
+      teamVesting,
+      vTeam,
+      accounts: [account1],
+    } = await loadFixture(deploy);
 
     await expect(
-      vesting.emergencyWithdrawToken(kerc.address, account1.address)
+      teamVesting
+        .connect(vTeam)
+        .emergencyWithdrawToken(kercAddr, account1.address)
     ).to.be.revertedWith('ERR:CANT_WITHDRAW_VESTING_TOKEN');
 
     // After vesting ends
     await networkHelpers.time.increaseTo(now + monthInSeconds * 53);
 
-    await expect(vesting.emergencyWithdrawToken(kerc.address, account1.address))
-      .to.not.be.reverted;
+    await expect(
+      teamVesting
+        .connect(vTeam)
+        .emergencyWithdrawToken(kercAddr, account1.address)
+    ).to.not.be.reverted;
   });
 });

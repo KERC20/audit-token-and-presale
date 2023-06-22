@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity =0.8.19;
+pragma solidity =0.8.18;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -15,11 +15,10 @@ contract KercVesting is Ownable {
         400, 400, 400, 400, 400, 400, 400, 400, 400, 400, 400, 400, // 4th year
         400, 400, 400, 400                                          // 5th year
     ];
-    uint256 private constant monthInSeconds = 2628000; // 365 / 12 * 3600 * 24
+    uint256 private constant monthInSeconds = 2628000; /// @dev 365 / 12 * 3600 * 24
     address public token;
-    address public receiver;
+    uint256 public tokens;
     uint256 public startTime;
-    uint256 public initialBalance;
     uint256 public released;
 
     event VestingStarted(
@@ -28,12 +27,17 @@ contract KercVesting is Ownable {
         uint256 _startTime
     );
     event ERC20Released(address indexed token, uint256 amount);
-    event UpdateVestingReceiver(address receiver);
     /// @dev `token` is address(0) if ETH
     event EmergecyWithdraw(address receiver, address token, uint256 balance);
 
-    constructor(address _receiver) {
-        receiver = _receiver;
+    constructor(address _owner, address _token, uint256 _tokens) {
+        _transferOwnership(_owner);
+
+        token = _token;
+        tokens = _tokens;
+        startTime = block.timestamp;
+
+        emit VestingStarted(_token, _tokens, startTime);
     }
 
     function vestedAmount() public view returns (uint256) {
@@ -55,45 +59,23 @@ contract KercVesting is Ownable {
             }
         }
 
-        return (initialBalance * pct) / 1e4;
+        return (tokens * pct) / 1e4;
     }
 
     function releasable() public view returns (uint256) {
         return vestedAmount() - released;
     }
 
-    /// @dev Owner check inside function since called inside KERC contract
-    function start(address _token, uint256 _amount) public {
-        require(tx.origin == owner(), "ERR:NOT_OWNER");
-        require(startTime == 0, "ERR:ALREADY_STARTED");
-        require(_token != address(0), "ERR:ZERO_ADDR:TOKEN");
-
-        token = _token;
-        initialBalance = _amount;
-        startTime = block.timestamp;
-
-        emit VestingStarted(_token, _amount, startTime);
-    }
-
-    /// @dev Intentionally left without onlyOwner since contract owner is deployer
-    function release() public {
+    function release() public onlyOwner {
         uint256 vested = vestedAmount();
         require(vested > released, "ERR:NOTHING_TO_RELEASE");
 
         uint256 amount = vested - released;
         released = vested;
 
-        IERC20(token).transfer(receiver, amount);
+        IERC20(token).transfer(owner(), amount);
 
         emit ERC20Released(token, amount);
-    }
-
-    function setReceiver(address _receiver) public onlyOwner {
-        require(_receiver != address(0), "ERR:ZERO_ADDR:RECEIVER");
-
-        receiver = _receiver;
-
-        emit UpdateVestingReceiver(_receiver);
     }
 
     function emergencyWithdrawETH(address _receiver) public onlyOwner {
@@ -125,8 +107,4 @@ contract KercVesting is Ownable {
 
         emit EmergecyWithdraw(_receiver, _token, balance);
     }
-
-    receive() external payable {}
-
-    fallback() external payable {}
 }

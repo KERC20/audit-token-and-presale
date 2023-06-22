@@ -17,44 +17,50 @@ function numToMillion(n: number) {
 
 describe('KERC', function () {
   async function deploy() {
-    const [owner, eco, op, res, multisig, ...accounts] =
-      await ethers.getSigners();
+    const [owner, eco, op, res, acc1, acc2] = await ethers.getSigners();
 
-    const Vesting = await ethers.getContractFactory('KercVesting');
-    const vesting = await Vesting.deploy(multisig.address);
-
-    const KERC = await ethers.getContractFactory('KERC');
-    const kerc = await KERC.deploy(
+    const kerc = await ethers.deployContract('KERC', [
       eco.address,
       op.address,
       res.address,
-      vesting.address
-    );
+      acc1.address,
+      acc2.address,
+      210_000,
+    ]);
+    const kercAddr = await kerc.getAddress();
 
     return {
       kerc,
+      kercAddr,
       owner,
       eco,
       op,
       res,
-      vesting,
-      accounts,
     };
   }
 
   it('Correctly mints tokens', async function () {
-    const { kerc, eco, op, res, vesting } = await loadFixture(deploy);
+    const { kerc, eco, op, res } = await loadFixture(deploy);
+
+    const [teamVesting, partnerVesting] = await Promise.all([
+      await kerc.teamVesting(),
+      await kerc.partnerVesting(),
+    ]);
 
     expect(await kerc.balanceOf(eco.address)).to.be.equal(numToMillion(350));
     expect(await kerc.balanceOf(op.address)).to.be.equal(numToMillion(75));
-    expect(await kerc.balanceOf(res.address)).to.be.equal(numToMillion(25));
-    expect(await kerc.balanceOf(vesting.address)).to.be.equal(numToMillion(50));
+    expect(await kerc.balanceOf(res.address)).to.be.equal(
+      numToMillion(25 - 0.21)
+    );
+    expect(await kerc.balanceOf(teamVesting)).to.be.equal(numToMillion(50));
+    expect(await kerc.balanceOf(partnerVesting)).to.be.equal(
+      numToMillion(0.21)
+    );
   });
 
   it('Can burn tokens', async function () {
     const { kerc, eco } = await loadFixture(deploy);
 
-    expect(await kerc.totalSupply()).to.be.equal(numToMillion(500));
     expect(await kerc.connect(eco).burn(numToMillion(1))).to.not.be.reverted;
     expect(await kerc.totalSupply()).to.be.equal(numToMillion(499));
   });
