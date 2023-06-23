@@ -13,7 +13,7 @@ contract KercPresale is Ownable {
     /// @dev List of valid presale tokens
     address[] public tokens;
     /// @dev Cached token decimals, also used to verify valid token
-    mapping(address => uint8) tokenDecimals;
+    mapping(address => uint8) public tokenDecimals;
     /// @dev Address to balance mapping of all presale participants
     mapping(address => uint256) public balanceOf;
     /// @dev List of all presale participants
@@ -61,32 +61,16 @@ contract KercPresale is Ownable {
         uint256 _targetAmt,
         uint256 _hardCapAmt
     ) {
-        uint256 numTokens = _tokens.length;
-
         require(_receiver != address(0), "ERR:ZERO_ADDR:RECEIVER");
-        require(numTokens > 0, "ERR:NO_TOKENS");
         require(
             _targetAmt > 0 && _targetAmt < 1 ether && _targetAmt <= _hardCapAmt,
             "ERR:TARGET"
         );
         require(_hardCapAmt > 0 && _hardCapAmt < 1 ether, "ERR:HARD_CAP");
 
-        /// @dev cache token decimals
-        for (uint256 i; i < numTokens; ) {
-            address token = _tokens[i];
-            require(token != address(0), "ERR:ZERO_ADDR:TOKEN");
-
-            uint8 decimals = ERC20(token).decimals();
-            require(decimals > 0 && decimals <= 18, "ERR:DECIMALS");
-            tokenDecimals[token] = decimals;
-
-            unchecked {
-                ++i;
-            }
-        }
+        setTokens(_tokens);
 
         receiver = _receiver;
-        tokens = _tokens;
         targetAmt = _targetAmt * 1 ether;
         hardCapAmt = _hardCapAmt * 1 ether;
     }
@@ -199,6 +183,37 @@ contract KercPresale is Ownable {
         require(_hardCapAmt * 1 ether >= totalContributed, "ERR:AMT_TOO_LOW");
 
         hardCapAmt = _hardCapAmt * 1 ether;
+    }
+
+    function setTokens(address[] memory _tokens) public onlyOwner {
+        uint256 numTokens = _tokens.length;
+        require(numTokens > 0, "ERR:NO_TOKENS");
+
+        /// @dev Reset previously set tokens if we have any
+        address[] memory oldTokens = tokens;
+        uint256 oldNumTokens = oldTokens.length;
+        for (uint256 i; i < oldNumTokens; ) {
+            tokenDecimals[oldTokens[i]] = 0;
+            unchecked {
+                ++i;
+            }
+        }
+
+        /// @dev Cache new token decimals
+        for (uint256 i; i < numTokens; ) {
+            address token = _tokens[i];
+            require(token != address(0), "ERR:ZERO_ADDR:TOKEN");
+
+            uint8 decimals = ERC20(token).decimals();
+            require(decimals > 0 && decimals <= 18, "ERR:DECIMALS");
+            tokenDecimals[token] = decimals;
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        tokens = _tokens;
     }
 
     /// @notice Convenience function for starting the presale

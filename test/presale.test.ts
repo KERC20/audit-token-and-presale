@@ -62,6 +62,22 @@ describe('Presale', function () {
   it('Can fetch raise tokens', async function () {
     const { presale, usdcAddr, busdAddr } = await loadFixture(deploy);
     expect(await presale.getTokens()).to.eql([usdcAddr, busdAddr]);
+    expect(await presale.tokenDecimals(usdcAddr)).to.equal(6);
+    expect(await presale.tokenDecimals(busdAddr)).to.equal(18);
+  });
+
+  it('Can update raise tokens', async function () {
+    const { presale, usdcAddr, busdAddr } = await loadFixture(deploy);
+    expect(await presale.getTokens()).to.eql([usdcAddr, busdAddr]);
+
+    const frax = await ethers.deployContract('Token', ['Frax', 'FRAX', 18]);
+    const fraxAddr = await frax.getAddress();
+
+    await expect(presale.setTokens([fraxAddr])).to.not.be.reverted;
+    expect(await presale.getTokens()).to.eql([fraxAddr]);
+    expect(await presale.tokenDecimals(fraxAddr)).to.equal(18);
+    expect(await presale.tokenDecimals(usdcAddr)).to.equal(0);
+    expect(await presale.tokenDecimals(busdAddr)).to.equal(0);
   });
 
   it('Can update hard cap amount', async function () {
@@ -277,9 +293,7 @@ describe('Presale', function () {
   });
 
   it('Can emergency withdraw ETH', async function () {
-    const { presale, account1, presaleAddr, treasury } = await loadFixture(
-      deploy
-    );
+    const { presale, presaleAddr, treasury } = await loadFixture(deploy);
 
     const preBalance = await ethers.provider.getBalance(treasury);
     const fundEther = await ethers.deployContract('FundEther', [presaleAddr], {
