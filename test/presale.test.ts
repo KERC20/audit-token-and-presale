@@ -282,6 +282,22 @@ describe('Presale', function () {
     expect(await presale.balanceOf(account1.address)).to.equal(amt2k_result);
   });
 
+  it('Fails on deposits with non-supported tokens', async function () {
+    const { presale, presaleAddr, account1, now } = await loadFixture(deploy);
+
+    await presale.setTimes(now - 3600, now + 3600 * 24);
+
+    const usdm = await ethers.deployContract('Token', ['Moo Coin', 'USDM', 6]);
+    const usdmAddr = await usdm.getAddress();
+
+    const amt1k_usd = helpers.numToUSD(1_000);
+
+    await usdm.connect(account1).approve(presaleAddr, amt1k_usd);
+    await expect(
+      presale.connect(account1).participate(usdmAddr, amt1k_usd)
+    ).to.be.rejectedWith('ERR:NOT_VALID_TOKEN');
+  });
+
   it('Can emergency withdraw token', async function () {
     const { presale, account1, presaleAddr, usdc, usdcAddr, treasury } =
       await loadFixture(deploy);
