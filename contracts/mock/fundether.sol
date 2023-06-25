@@ -2,13 +2,9 @@
 pragma solidity =0.8.18;
 
 contract FundEther {
-    address payable private immutable target;
+    constructor() payable {}
 
-    constructor(address _target) payable {
-        target = payable(_target);
-    }
-
-    function destroy() public {
-        selfdestruct(target);
+    function destroy(address _target) public {
+        selfdestruct(payable(_target));
     }
 }

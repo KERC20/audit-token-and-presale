@@ -4,6 +4,7 @@ import { ethers } from 'hardhat';
 import Decimal from 'decimal.js';
 import * as networkHelpers from '@nomicfoundation/hardhat-network-helpers';
 import * as helpers from './helpers';
+import { numToWei } from './helpers';
 
 const monthInSeconds = 2628000;
 
@@ -113,7 +114,6 @@ describe('Vesting', function () {
 
   it('Allows emergency withdrawal', async function () {
     const {
-      owner,
       teamVesting,
       usdc,
       usdcAddr,
@@ -125,7 +125,7 @@ describe('Vesting', function () {
 
     // Withdraw token
     const vestingAddr = await teamVesting.getAddress();
-    await usdc.mint(vestingAddr, amt);
+    await usdc.mintFor(vestingAddr, amt);
     expect(await usdc.balanceOf(vestingAddr)).to.be.equal(amt);
     await expect(
       teamVesting
@@ -136,14 +136,11 @@ describe('Vesting', function () {
     expect(await usdc.balanceOf(account1.address)).to.be.equal(amt);
 
     // Withdraw ETH
-    await owner.sendTransaction({
-      to: vestingAddr,
+    const fundEther = await ethers.deployContract('FundEther', [], {
       value: amt,
     });
-    expect(await ethers.provider.getBalance(vestingAddr)).to.be.equal(amt);
-    expect(await ethers.provider.getBalance(account1.address)).to.be.equal(
-      helpers.numToWei(10_000)
-    );
+    await expect(fundEther.destroy(vestingAddr)).to.not.be.reverted;
+    expect(await ethers.provider.getBalance(vestingAddr)).to.equal(amt);
     await expect(
       teamVesting.connect(vTeam).emergencyWithdrawETH(account1.address)
     ).to.not.be.reverted;

@@ -37,10 +37,10 @@ describe('Presale', function () {
     const presaleAddr = await presale.getAddress();
 
     const seedAmount = helpers.numToUSD(10_000_000);
-    await usdc.mint(account1.address, seedAmount);
-    await usdc.mint(account2.address, seedAmount);
-    await usdc.mint(account3.address, seedAmount);
-    await busd.mint(account1.address, numToWei(10_000_00));
+    await usdc.mintFor(account1.address, seedAmount);
+    await usdc.mintFor(account2.address, seedAmount);
+    await usdc.mintFor(account3.address, seedAmount);
+    await busd.mintFor(account1.address, numToWei(10_000_00));
 
     return {
       presale,
@@ -296,14 +296,14 @@ describe('Presale', function () {
     const { presale, presaleAddr, treasury } = await loadFixture(deploy);
 
     const preBalance = await ethers.provider.getBalance(treasury);
-    const fundEther = await ethers.deployContract('FundEther', [presaleAddr], {
+    const fundEther = await ethers.deployContract('FundEther', [], {
       value: numToWei(100),
     });
     const fundEtherAddr = await fundEther.getAddress();
     expect(await ethers.provider.getBalance(fundEtherAddr)).to.equal(
       numToWei(100)
     );
-    await expect(fundEther.destroy()).to.not.be.reverted;
+    await expect(fundEther.destroy(presaleAddr)).to.not.be.reverted;
     expect(await ethers.provider.getBalance(presaleAddr)).to.equal(
       numToWei(100)
     );
