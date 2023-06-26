@@ -36,6 +36,8 @@ contract KercPresale is Ownable {
     event Participate(address indexed user, address token, uint256 amount);
     event UpdatePresaleStartTime(uint256 endTime);
     event UpdatePresaleEndTime(uint256 endTime);
+    event UpdateTargetAmount(uint256 amount);
+    event UpdateHardCapAmount(uint256 amount);
     event PresaleHasEnded(uint256 at);
     event PresaleReopened(uint256 at);
     event Received(address from, uint256 amount);
@@ -175,6 +177,8 @@ contract KercPresale is Ownable {
         require(_targetAmt < 1 ether, "ERR:AMT");
 
         targetAmt = _targetAmt * 1 ether;
+
+        emit UpdateTargetAmount(targetAmt);
     }
 
     /// @dev Allow updating hard cap if bigger than totalContributed
@@ -183,6 +187,8 @@ contract KercPresale is Ownable {
         require(_hardCapAmt * 1 ether >= totalContributed, "ERR:AMT_TOO_LOW");
 
         hardCapAmt = _hardCapAmt * 1 ether;
+
+        emit UpdateHardCapAmount(hardCapAmt);
     }
 
     function setTokens(address[] memory _tokens) public onlyOwner {
