@@ -174,7 +174,7 @@ contract KercPresale is Ownable {
 
     /// @dev No need to check the target amount since it's display only
     function setTargetAmt(uint256 _targetAmt) external onlyOwner {
-        require(_targetAmt < 1 ether, "ERR:AMT");
+        require(_targetAmt > 0 && _targetAmt < 1 ether, "ERR:AMT");
 
         targetAmt = _targetAmt * 1 ether;
 
@@ -183,7 +183,7 @@ contract KercPresale is Ownable {
 
     /// @dev Allow updating hard cap if bigger than totalContributed
     function setHardCapAmt(uint256 _hardCapAmt) external onlyOwner {
-        require(_hardCapAmt < 1 ether, "ERR:AMT");
+        require(_hardCapAmt > 0 && _hardCapAmt < 1 ether, "ERR:AMT");
         require(_hardCapAmt * 1 ether >= totalContributed, "ERR:AMT_TOO_LOW");
 
         hardCapAmt = _hardCapAmt * 1 ether;
