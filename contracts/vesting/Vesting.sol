@@ -31,6 +31,9 @@ contract KercVesting is Ownable {
     event EmergecyWithdraw(address receiver, address token, uint256 balance);
 
     constructor(address _owner, address _token, uint256 _tokens) {
+        require(_owner != address(0), "ERR:ZERO_ADDR:OWNER");
+        require(_token != address(0), "ERR:ZERO_ADDR:TOKEN");
+        require(_tokens > 0, "ERR:TOKENS");
         _transferOwnership(_owner);
 
         token = _token;
