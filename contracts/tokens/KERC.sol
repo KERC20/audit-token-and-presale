@@ -14,45 +14,34 @@ import "../vesting/Vesting.sol";
 /// @author snorkypie
 contract KERC is ERC20, ERC20Permit, ERC20Burnable {
     address public teamVesting;
-    address public partnerVesting;
 
     /// Read more about token allocations here:
     /// https://kerc.gitbook.io/kerc/tokenomics/usdkerc-token
     constructor(
-        address _ecosystem,
-        address _operations,
-        address _reserves,
-        address _vTeam,
-        address _vPartner,
-        uint256 _vPartnerTokens
+        address _multisig, address _team
     ) ERC20("KERC Token", "KERC") ERC20Permit("KERC Token") {
-        require(_ecosystem != address(0), "ERR:ZERO:ECO");
-        require(_operations != address(0), "ERR:ZERO:OPERATIONS");
-        require(_reserves != address(0), "ERR:ZERO:RESERVES");
-        require(_vTeam != address(0), "ERR:ZERO:vTEAM");
-        require(_vPartner != address(0), "ERR:ZERO:vPARTNER");
+        require(_multisig != address(0), "ERR:ZERO:MULTISIG");
+        require(_team != address(0), "ERR:ZERO:TEAM");
 
+        /// @dev Shorthand for 1M tokens
         uint256 million = 10 ** decimals() * 1e6;
 
-        address token = address(this);
+        /// @notice Total tokens to mint
+        uint256 mintTokens = 500 * million;
 
-        _vPartnerTokens *= 1 ether;
-        uint256 reserveTokens = 25 * million - _vPartnerTokens;
-        uint256 teamTokens = 50 * million; /// @notice 40M team + 10M advisory
+        /// @notice 40M team + 10M advisory
+        uint256 teamTokens = 50 * million;
 
-        /// @notice Set up vesting contracts
-        teamVesting = address(new KercVesting(_vTeam, token, teamTokens));
-        partnerVesting = address(new KercVesting(_vPartner, token, _vPartnerTokens));
-
-        /// @notice Mint project tokens
-        _mint(_ecosystem, 350 * million);
-        _mint(_operations, 75 * million);
-        _mint(_reserves, reserveTokens);
+        /// @notice Set up team vesting (40M team + 10M advisory)
+        teamVesting = address(new KercVesting(_team, address(this), teamTokens));
 
         /// @notice Mint vesting tokens
         _mint(teamVesting, teamTokens);
-        _mint(partnerVesting, _vPartnerTokens);
 
-        require(totalSupply() == 500 * million, "ERR:TOTAL_SUPPLY");
+        /// @notice Mint all non-team project tokens into our token multisig
+        _mint(_multisig, mintTokens - teamTokens);
+
+        /// @notice Check that we mint the right number of tokens
+        require(totalSupply() == mintTokens, "ERR:TOTAL_SUPPLY");
     }
 }
